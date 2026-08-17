@@ -1,7 +1,9 @@
 # GeneralsX: Instructions for AI Coding Agents
 
 ## What I Am
-GeneralsX is a cross-platform port of Command & Conquer: Generals Zero Hour for **Linux and macOS**, porting legacy Windows DirectX 8 + Miles Sound code to a modern stack (SDL3 + DXVK + OpenAL + 64-bit). This is a **massive C++ game engine** (~500k LOC) preserving retail gameplay while modernizing the platform layer.
+GeneralsX is a cross-platform port of Command & Conquer: Generals Zero Hour, porting legacy Windows DirectX 8 + Miles Sound code to a modern stack (SDL3 + DXVK + OpenAL + 64-bit). This is a **massive C++ game engine** (~500k LOC) preserving retail gameplay while modernizing the platform layer.
+
+This fork's active targets are **macOS (Apple Silicon) and iOS/iPadOS**; it adds the iOS/iPadOS port on top of the Linux/macOS work inherited from [fbraz3/GeneralsX](https://github.com/fbraz3/GeneralsX). See `README.md` for the full lineage. Renderer chain: DirectX 8 → DXVK → Vulkan → MoltenVK → Metal.
 
 ## Must-Load Context
 Before starting work, read:
@@ -17,7 +19,8 @@ Before starting work, read:
 - `Core/GameEngineDevice/Source/`
 
 ## Platform Focus
-- **Active**: Linux (`linux64-deploy`), macOS (`macos-vulkan`)
+- **Primary**: macOS (`macos-vulkan`), iOS/iPadOS (`ios-vulkan`)
+- **Inherited**: Linux (`linux64-deploy`) — still builds, but not routinely tested in this fork
 - **Future/Exploratory**: Windows (MinGW path, issue #29)
 - **Legacy**: VC6 + DirectX 8 + Miles (reference only)
 
@@ -51,27 +54,71 @@ Before starting work, read:
 
 ## Build Commands
 
-### Docker (recommended on Linux host)
+### macOS (primary)
 ```bash
-# Linux build
+./scripts/build/macos/build-macos-zh.sh      # configure + build (--build-only skips configure)
+./scripts/build/macos/deploy-macos-zh.sh     # → ~/GeneralsX/GeneralsZH + run.sh
+```
+
+Equivalent manual build: `cmake --preset macos-vulkan && cmake --build build/macos-vulkan --target z_generals`.
+First configure takes 5–10 min (DXVK is fetched and built via Meson); later builds finish in
+under a minute. Prereqs and troubleshooting: `docs/BUILD/MACOS.md`.
+
+**The runtime directory is `~/GeneralsX/GeneralsZH`.** `~/GeneralsX/GeneralsMD` is a legacy
+fallback the scripts still detect.
+
+### iOS / iPadOS
+```bash
+git submodule update --init references/fbraz3-dxvk
+./scripts/build/ios/fetch-moltenvk.sh && ./scripts/build/ios/stage-fonts.sh
+cmake --preset ios-vulkan
+cmake --build build/ios-vulkan --target z_generals
+GX_TEAM_ID=<team> GX_BUNDLE_ID=com.you.generalszh ./scripts/build/ios/package-ios-zh.sh --install
+```
+
+`--dev` skips the ~2.7 GB asset copy for fast code iteration. DXVK-on-iOS is built from the
+submodule plus `Patches/dxvk-ios.patch`.
+
+### Linux (inherited)
+```bash
+# Docker (recommended on a Linux host)
 ./scripts/build/linux/docker-configure-linux.sh linux64-deploy
 ./scripts/build/linux/docker-build-linux-zh.sh linux64-deploy
+
+# Native
+cmake --preset linux64-deploy
+cmake --build build/linux64-deploy --target z_generals
 
 # Optional: Windows via MinGW cross-build
 ./scripts/build/linux/docker-build-mingw-zh.sh mingw-w64-i686
 ```
 
-### Native Linux
+## Running
+
+Preferred command — use this unless a task needs something else:
+
 ```bash
-cmake --preset linux64-deploy
-cmake --build build/linux64-deploy --target z_generals
+cd ~/GeneralsX/GeneralsZH && ./run.sh -win -mod ControlBarPro_BarOnly.big -fps 60
 ```
 
-### Native macOS
-```bash
-cmake --preset macos-vulkan
-cmake --build build/macos-vulkan --target z_generals
-```
+The same flags are wrapped in an `/Applications` launcher, regenerated with
+`./scripts/build/macos/make-app-shortcut-zh.sh` (edit `GAME_FLAGS` there to change them).
+`-noshellmap` skips the animated menu and reaches a game faster. Full flag list:
+`docs/ETC/COMMAND_LINE_PARAMETERS.md`.
+
+### Mods
+
+Retail `.big` mods load through the original `-mod` switch (`parseMod` in
+`GeneralsMD/Code/GameEngine/Source/Common/CommandLine.cpp`). Drop the `.big` in the user data
+dir and pass its name, or pass an absolute path; `-mod <directory>` loads every `.big` in a
+folder.
+
+- macOS user data dir: `~/Library/Application Support/GeneralsX/GeneralsZH/`
+- Linux: `~/.local/share/GeneralsX/GeneralsZH/`
+
+Mod files override the base archives (`Data/INI/...`, `Window/*.wnd`, `Art/Textures/*`).
+Art-and-layout mods are client-side; gameplay-INI mods desync against unmodded peers and break
+retail replays. Full notes: `docs/HOWTO/INSTALLATION.md`.
 
 ## Target Priority
 1. **GeneralsXZH** (Zero Hour) – Primary target, most feature-complete
@@ -94,7 +141,7 @@ cmake --build build/macos-vulkan --target z_generals
 - **Rule**: Never edit files in `build/_deps/...` directly. Always commit fixes in fork repo first.
 
 ## Common Pitfalls
-- **Linux case sensitivity**: Include paths must match exact case. Use `scripts/tooling/cpp/fixIncludesCase.sh`.
+- **Linux case sensitivity**: Include paths must match exact case. Use `scripts/tooling/cpp/maintenance/fixIncludesCase.sh`.
 - **DXVK needs Vulkan**: Install `vulkan-tools`, `mesa-vulkan-drivers` or GPU drivers.
 - **-logToCon only in debug**: Available only with `RTS_BUILD_OPTION_DEBUG=ON`.
 - **SDL3 from source**: Fetched via CMake FetchContent. No system package needed.
@@ -102,6 +149,10 @@ cmake --build build/macos-vulkan --target z_generals
 - **Debug options break replays**: Use `RTS_BUILD_OPTION_DEBUG=OFF` for replay tests.
 
 ## Testing & Validation
+
+There is no unit test suite for engine changes. "It builds" is not verification — build,
+deploy, and actually run the affected path. Logs land in `logs/`.
+
 ### Smoke test
 ```bash
 ./scripts/qa/smoke/docker-smoke-test-zh.sh linux64-deploy
@@ -198,9 +249,10 @@ printf "%s" "$body" | rg '\\n' && echo "HAS_LITERAL_BACKSLASH_N=YES" || echo "HA
 ```
 
 ## Build Presets Reference
-- **linux64-deploy** – GCC/Clang x86_64, Release (PRIMARY LINUX)
+- **macos-vulkan** – macOS ARM64, RelWithDebInfo (PRIMARY)
+- **ios-vulkan** – iOS/iPadOS ARM64 (PRIMARY)
+- **linux64-deploy** – GCC/Clang x86_64, Release (inherited)
 - **linux64-testing** – Debug variant
-- **macos-vulkan** – macOS ARM64, RelWithDebInfo (PRIMARY MACOS)
 - **mingw-w64-i686** – MinGW cross-compile (exploratory)
 - **vc6** – Visual Studio 6, 32-bit (legacy)
 - **win32** – MSVC 2022, experimental
@@ -209,6 +261,9 @@ printf "%s" "$body" | rg '\\n' && echo "HAS_LITERAL_BACKSLASH_N=YES" || echo "HA
 - `GeneralsMD/`: Zero Hour.
 - `Generals/`: base game.
 - `Core/`: shared libraries.
+- `ios/`: XcodeGen signing stub + staged `Options.ini` / `dxvk.conf`.
+- `Patches/`: `dxvk-ios.patch`, applied to the DXVK submodule for iOS builds.
+- `docs/port/`: the porting playbook, patterns, and release checklist.
 - `references/`: thesuperhackers-main, fbraz3-dxvk (active); archive/ (historical).
 - `docs/WORKDIR/`: current work docs.
 - `docs/HOWTO/`: user-facing step-by-step tutorials (SagePatch config, etc.)
