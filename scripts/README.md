@@ -26,6 +26,7 @@ Scripts for Linux native and Docker-based builds:
 - `deploy-macos-zh.sh` - Deploy binaries
 - `deploy-macos-generals.sh` - Deploy binaries
 - `run-macos-zh.sh` - Launch the game
+- `make-app-shortcut-zh.sh` - Create an /Applications launcher .app (icon + preferred flags)
 
 #### `build/windows/` - Windows Build (Pending)
 Reserved for modern Windows toolchain (VS2022 + SDL3 + DXVK + OpenAL)
