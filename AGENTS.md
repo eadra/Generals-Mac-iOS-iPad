@@ -102,7 +102,9 @@ cd ~/GeneralsX/GeneralsZH && ./run.sh -win -mod ControlBarPro_BarOnly.big -fps 6
 ```
 
 The same flags are wrapped in an `/Applications` launcher, regenerated with
-`./scripts/build/macos/make-app-shortcut-zh.sh` (edit `GAME_FLAGS` there to change them).
+`./scripts/build/macos/make-app-shortcut-zh.sh` (`GAME_FLAGS` and `MOD_BIG` override them).
+The mod is not in the repository, so the launcher passes `-mod` only when the `.big` is
+actually installed; without it the game starts unmodded instead of silently dropping the flag.
 `-noshellmap` skips the animated menu and reaches a game faster. Full flag list:
 `docs/ETC/COMMAND_LINE_PARAMETERS.md`.
 

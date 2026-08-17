@@ -85,6 +85,24 @@ replace the retail versions. Use `-mod <directory>` to load every `.big` in a fo
 Mods that only replace art and window layouts are client-side and do not affect determinism.
 Mods that change gameplay INI will desync against unmodded peers and break retail replays.
 
+### Control Bar Pro variants
+
+Control Bar Pro ships in more than one build, and they differ in how much of the UI they take
+over. **`ControlBarPro_BarOnly.big`** is the conservative one and the variant the macOS
+launcher defaults to: it replaces the in-game command bar and generals-powers shortcut bars
+(`Art\Textures\*CommandBarPro*`, `Data\INI\ControlBarScheme.ini`, the `MappedImages` entries,
+and in-game layouts like `Window\Diplomacy.wnd`) and **leaves the main menu at retail** — it
+carries no `mainmenubackdropuserinterface.tga`, no shell UI texture atlases, no
+`HeaderTemplate.ini` / `Language.ini`, and none of the `Window\Menus\*.wnd` layouts.
+
+The full `ControlBarProGeneralsZeroHourHD.big` build does include all of those, so it restyles
+the menus as well. Pick whichever you prefer — both are client-side art.
+
+No mod is distributed with this repository; supply your own copy, the same as the game assets.
+Drop it in the user data directory above and the `/Applications` launcher created by
+`scripts/build/macos/make-app-shortcut-zh.sh` picks it up on the next launch. Without it, that
+launcher simply starts the game unmodded.
+
 ## Requirements
 
 GeneralsX has been developed and tested primarily on the following environments:

@@ -5,13 +5,19 @@
 # deployed ~/GeneralsX/GeneralsZH/run.sh with the preferred flags. The game
 # itself is not copied into the bundle; deploy-macos-zh.sh still owns that.
 #
+# The mod is not redistributed with this repository, so the generated launcher passes
+# -mod only when the .big is actually present in the user data directory; otherwise the
+# game starts unmodded instead of silently ignoring a flag.
+#
 # Usage:
 #   ./scripts/build/macos/make-app-shortcut-zh.sh [INSTALL_DIR]
 #
 # Environment:
 #   APP_NAME    Bundle name without .app   (default: Generals Zero Hour)
 #   GAME_DIR    Deployed runtime directory (default: $HOME/GeneralsX/GeneralsZH)
-#   GAME_FLAGS  Flags passed to run.sh     (default: -win -mod ControlBarPro_BarOnly.big -fps 60)
+#   GAME_FLAGS  Flags passed to run.sh     (default: -win -fps 60)
+#   MOD_BIG     Mod archive, name or path  (default: ControlBarPro_BarOnly.big; empty disables)
+#   USER_DATA   Where bare mod names live  (default: $HOME/Library/Application Support/GeneralsX/GeneralsZH)
 #   ICON_PNG    Square source image        (default: assets/generalsx-zh_icon.png)
 
 set -eu
@@ -22,7 +28,9 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 INSTALL_DIR="${1:-/Applications}"
 APP_NAME="${APP_NAME:-Generals Zero Hour}"
 GAME_DIR="${GAME_DIR:-${HOME}/GeneralsX/GeneralsZH}"
-GAME_FLAGS="${GAME_FLAGS:--win -mod ControlBarPro_BarOnly.big -fps 60}"
+GAME_FLAGS="${GAME_FLAGS:--win -fps 60}"
+MOD_BIG="${MOD_BIG-ControlBarPro_BarOnly.big}"
+USER_DATA="${USER_DATA:-${HOME}/Library/Application Support/GeneralsX/GeneralsZH}"
 ICON_PNG="${ICON_PNG:-${PROJECT_ROOT}/assets/generalsx-zh_icon.png}"
 
 APP="${INSTALL_DIR}/${APP_NAME}.app"
@@ -76,13 +84,30 @@ PLIST
 cat > "${CONTENTS}/MacOS/launch" << LAUNCHER
 #!/bin/bash
 GAME_DIR="${GAME_DIR}"
+MOD_BIG="${MOD_BIG}"
+USER_DATA="${USER_DATA}"
 
 if [[ ! -x "\${GAME_DIR}/run.sh" ]]; then
     osascript -e 'display alert "Zero Hour not deployed" message "Expected ${GAME_DIR}/run.sh. Run scripts/build/macos/deploy-macos-zh.sh first." as critical'
     exit 1
 fi
 
-exec "\${GAME_DIR}/run.sh" ${GAME_FLAGS}
+# The mod ships with nobody: pass -mod only if the archive is really there, so a machine
+# without it starts unmodded rather than having the engine drop the flag in silence.
+# Checked at launch, not at generation, so dropping the .big in later needs no regeneration.
+MOD_ARGS=()
+if [[ -n "\${MOD_BIG}" ]]; then
+    if [[ "\${MOD_BIG}" == /* ]]; then
+        MOD_PATH="\${MOD_BIG}"
+    else
+        MOD_PATH="\${USER_DATA}/\${MOD_BIG}"
+    fi
+    if [[ -e "\${MOD_PATH}" ]]; then
+        MOD_ARGS=(-mod "\${MOD_BIG}")
+    fi
+fi
+
+exec "\${GAME_DIR}/run.sh" ${GAME_FLAGS} "\${MOD_ARGS[@]}"
 LAUNCHER
 chmod +x "${CONTENTS}/MacOS/launch"
 
@@ -91,3 +116,11 @@ touch "${APP}"
 
 echo "Created ${APP}"
 echo "  launches: ${GAME_DIR}/run.sh ${GAME_FLAGS}"
+if [[ -z "${MOD_BIG}" ]]; then
+    echo "  mod:      disabled"
+elif [[ "${MOD_BIG}" == /* && -e "${MOD_BIG}" ]] || [[ -e "${USER_DATA}/${MOD_BIG}" ]]; then
+    echo "  mod:      -mod ${MOD_BIG} (present)"
+else
+    echo "  mod:      -mod ${MOD_BIG} (not installed — will start unmodded)"
+    echo "            expected at ${USER_DATA}/${MOD_BIG}"
+fi
