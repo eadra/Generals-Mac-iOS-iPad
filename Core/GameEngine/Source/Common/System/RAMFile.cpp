@@ -103,6 +103,8 @@
 //         Private Functions
 //----------------------------------------------------------------------------
 
+std::mutex RAMFile::s_archiveMutex;
+
 //=================================================================
 // RAMFile::RAMFile
 //=================================================================
@@ -221,11 +223,15 @@ Bool RAMFile::openFromArchive(File *archiveFile, const AsciiString& filename, In
 	m_data = MSGNEW("RAMFILE") Char [size];	// pool[]ify
 	m_size = size;
 
-	if (archiveFile->seek(offset, File::START) != offset) {
-		return FALSE;
-	}
-	if (archiveFile->read(m_data, size) != size) {
-		return FALSE;
+	{
+		std::lock_guard<std::mutex> lock(s_archiveMutex);
+
+		if (archiveFile->seek(offset, File::START) != offset) {
+			return FALSE;
+		}
+		if (archiveFile->read(m_data, size) != size) {
+			return FALSE;
+		}
 	}
 	m_nameStr = filename;
 

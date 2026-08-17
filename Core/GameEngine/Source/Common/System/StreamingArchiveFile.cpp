@@ -182,16 +182,19 @@ Bool StreamingArchiveFile::openFromArchive(File *archiveFile, const AsciiString&
 	m_size = size;
 	m_curPos = 0;
 
-	if (m_file->seek(offset, File::START) != offset) {
-		return FALSE;
-	}
+	{
+		// The archive's File* is shared with every other file opened from it, so this
+		// size probe has to be atomic with respect to other readers' seek+read pairs.
+		std::lock_guard<std::mutex> lock(s_archiveMutex);
 
-	if (m_file->seek(size) != m_startingPos + size) {
-		return FALSE;
-	}
+		if (m_file->seek(offset, File::START) != offset) {
+			return FALSE;
+		}
 
-	// We know this will succeed.
-	m_file->seek(offset, File::START);
+		if (m_file->seek(size) != m_startingPos + size) {
+			return FALSE;
+		}
+	}
 
 	m_nameStr = filename;
 
@@ -222,14 +225,19 @@ Int StreamingArchiveFile::read( void *buffer, Int bytes )
 		return 0;
 	}
 
-	// There shouldn't be a way that this can fail, because we've already verified that the file
-	// contains at least this many bits.
-	m_file->seek(m_startingPos + m_curPos, File::START);
-
 	if (bytes + m_curPos > m_size)
 		bytes = m_size - m_curPos;
 
-	Int bytesRead = m_file->read(buffer, bytes);
+	Int bytesRead;
+	{
+		std::lock_guard<std::mutex> lock(s_archiveMutex);
+
+		// There shouldn't be a way that this can fail, because we've already verified that the file
+		// contains at least this many bits.
+		m_file->seek(m_startingPos + m_curPos, File::START);
+
+		bytesRead = m_file->read(buffer, bytes);
+	}
 
 	m_curPos += bytesRead;
 

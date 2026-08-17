@@ -49,6 +49,8 @@
 
 #include "Common/file.h"
 
+#include <mutex>
+
 //----------------------------------------------------------------------------
 //           Forward References
 //----------------------------------------------------------------------------
@@ -75,6 +77,12 @@ class RAMFile : public File
 		Char				*m_data;											///< File data in memory
 		Int					m_pos;												///< current read position
 		Int					m_size;												///< size of file in memory
+
+		// GeneralsX @bugfix Claude 16/08/2026 An archive hands the same File* to every file
+		// opened from it, so a seek-then-read pair on it is only atomic under a lock. With
+		// USE_BUFFERED_IO that File* wraps a FILE*, which is not position-safe either.
+		// ponytail: one lock for all archives; split per-archive if archive I/O ever contends.
+		static std::mutex s_archiveMutex;			///< guards seek+read pairs on a shared archive File*
 
 	public:
 
