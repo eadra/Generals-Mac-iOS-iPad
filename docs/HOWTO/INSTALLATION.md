@@ -66,6 +66,25 @@
    - `$HOME/GeneralsX/GeneralsZH` for Zero Hour
 4. Because the app is not code-signed, macOS Gatekeeper will initially block it. After the first launch attempt, go to **System Settings -> Privacy & Security** and allow the application to run.
 
+## Mods
+
+Retail `.big` mods (Control Bar Pro, HUD/skin packs, and similar art replacements) work through the
+original `-mod` switch. Drop the `.big` into the user data directory and pass its name:
+
+- Linux: `$XDG_DATA_HOME/GeneralsX/GeneralsZH/` (defaults to `~/.local/share/GeneralsX/GeneralsZH/`)
+- macOS: `~/Library/Application Support/GeneralsX/GeneralsZH/`
+
+```bash
+./run.sh -mod ControlBarProGeneralsZeroHourHD.big
+```
+
+An absolute path works too. Mod files override the base `.big` archives, so a mod's
+`Data\INI\ControlBarScheme.ini`, `Data\INI\MappedImages\...`, `Window\*.wnd` and `Art\Textures\*`
+replace the retail versions. Use `-mod <directory>` to load every `.big` in a folder.
+
+Mods that only replace art and window layouts are client-side and do not affect determinism.
+Mods that change gameplay INI will desync against unmodded peers and break retail replays.
+
 ## Requirements
 
 GeneralsX has been developed and tested primarily on the following environments:
