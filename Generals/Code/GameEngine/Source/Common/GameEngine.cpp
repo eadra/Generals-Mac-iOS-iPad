@@ -407,8 +407,6 @@ void GameEngine::init()
 		fprintf(stderr, "INFO: GameEngine::init() - About to initialize TheWritableGlobalData\n");
 		initSubsystem(TheWritableGlobalData, "TheWritableGlobalData", TheWritableGlobalData, &xferCRC, "Data\\INI\\Default\\GameData", "Data\\INI\\GameData");
 		fprintf(stderr, "INFO: GameEngine::init() - TheWritableGlobalData initialized\n");
-		TheWritableGlobalData->parseCustomDefinition();
-		fprintf(stderr, "INFO: GameEngine::init() - TheWritableGlobalData parseCustomDefinition complete\n");
 
 	// GeneralsX @feature felipebraz 08/06/2026 Auto-create SagePatch.ini in user data dir with defaults.
 	{
@@ -462,6 +460,13 @@ void GameEngine::init()
 		CommandLine::parseCommandLineForEngineInit();
 
 		TheArchiveFileSystem->loadMods();
+
+		// GeneralsX @bugfix Claude 16/08/2026 Must run after loadMods(). parseCustomDefinition() probes
+		// GenTool/fullviewport.dat to force the full-height viewport for 'Control Bar Pro' style addons,
+		// and that file usually ships inside the mod BIG - which is not mounted until loadMods() above.
+		// Probing any earlier always misses it, leaving the world clipped to the retail control bar height.
+		TheWritableGlobalData->parseCustomDefinition();
+		fprintf(stderr, "INFO: GameEngine::init() - TheWritableGlobalData parseCustomDefinition complete\n");
 
 		// doesn't require resets so just create a single instance here.
 		TheGameLODManager = MSGNEW("GameEngineSubsystem") GameLODManager;
